@@ -1,5 +1,5 @@
 group 'com.itgowo'
-version '0.0.2'
+version '0.0.4'
 
 apply plugin: 'java'
 apply plugin: 'com.novoda.bintray-release'//添加
@@ -26,15 +26,12 @@ buildscript {
 }
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-
-    implementation 'com.itgowo:MiniTCPClient:0.0.1'
-
 }
 publish {
     userOrg = 'itgowo'
     groupId = 'com.itgowo'
     artifactId = 'MiniTCPClient'
-    publishVersion = '0.0.2'
+    publishVersion = '0.0.4'
     desc = 'A long connection scheme based on Java Nio implementation, supporting sticky half packet processing'
     website = 'https://github.com/itgowo/MiniTCPClient'
 }

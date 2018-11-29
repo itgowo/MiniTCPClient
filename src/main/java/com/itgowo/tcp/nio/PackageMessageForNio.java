@@ -16,6 +16,7 @@ import java.util.List;
  * data n byte 消息数据
  */
 public class PackageMessageForNio {
+    public static final int BUFFER_SIZE = 256;
     /**
      * 0   new 出来默认值
      * 1   读取type值
@@ -74,7 +75,7 @@ public class PackageMessageForNio {
     /**
      * 下次处理的半包数据
      */
-    private ByteBuffer nextData = ByteBuffer.allocate(256);
+    private ByteBuffer nextData = ByteBuffer.allocate(BUFFER_SIZE);
     /**
      * type 1 byte 消息类型  系统协议  范围-127 ~ 128
      */
@@ -244,10 +245,10 @@ public class PackageMessageForNio {
         int dataLength = pack.getLength() - LENGTH_HEAD;
         pack.data = ByteBuffer.allocate(dataLength);
         if (dataLength <= byteBuffer.remaining()) {
-            pack.data.put(byteBuffer.array(),byteBuffer.position(),dataLength);
+            pack.data.put(byteBuffer.array(), byteBuffer.position(), dataLength);
             pack.step = STEP_DATA_COMPLETEED;
             pack.data.flip();
-            byteBuffer.position(byteBuffer.position()+dataLength);
+            byteBuffer.position(byteBuffer.position() + dataLength);
             return pack;
         } else {
             byteBuffer.position(0);
@@ -269,13 +270,14 @@ public class PackageMessageForNio {
     }
 
     private synchronized PackageMessageForNio decodePackageMessage(ByteBuffer byteBuffer) throws IOException {
+        autoExpandCapacity(byteBuffer);
         nextData.put(byteBuffer);
         if (nextData.remaining() < 6) {
             return null;
         }
         //nextData大于6，则正常处理
         nextData.flip();
-        if (nextData.remaining()<6){
+        if (nextData.remaining() < 6) {
             return null;
         }
         int type = nextData.get();
@@ -380,4 +382,24 @@ public class PackageMessageForNio {
         sb.append('}');
         return sb.toString();
     }
+
+    /**
+     * 自动扩容,递增值为BUFFER_SIZE的倍数
+     */
+    private void autoExpandCapacity(ByteBuffer byteBuffer) {
+        int old = nextData.remaining();
+        if (old < byteBuffer.remaining()) {
+            int newSize = nextData.limit() + byteBuffer.remaining();
+            int size = 0;
+            while (size < newSize) {
+                size += BUFFER_SIZE;
+            }
+            ByteBuffer newByteBuffer = ByteBuffer.allocate(size);
+            nextData.flip();
+            newByteBuffer.put(nextData);
+            newByteBuffer.put(byteBuffer);
+            nextData = newByteBuffer;
+        }
+    }
+
 }

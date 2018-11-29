@@ -6,29 +6,36 @@ import com.itgowo.tcp.nio.PackageMessageForNio;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.List;
 
 public class Demo {
     public static void main(String[] args) {
-        testPackageClient();
+        testPackage();
 
 
     }
 
     public static void testPackage() {
-        byte[] a1 = new byte[]{121, 0, 0, 0, 16, 3, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6};
-        byte[] a2 = new byte[]{121, 0, 0, 0, 14, 3, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8};
+        byte[] a1 = new byte[]{121, 0, 0, 0, 16, 3, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6};//完整包
+        byte[] a2 = new byte[]{121, 0, 0, 0, 19, 3, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8};//半包
+        byte[] a3 = new byte[]{9, 121, 0, 0, 0, 16, 3, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6};//粘包
+        byte[] a4 = new byte[]{121, 0, 0, 0, 18, 3, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8};//完整包
 
+        //PackageMessageForNio测试 开始
+//        ByteBuffer b1 = ByteBuffer.allocate(a1.length + a2.length + a3.length + a4.length);
+//        b1.put(a1).put(a2).put(a3).put(a4);
+//        b1.flip();
+//        PackageMessageForNio p = PackageMessageForNio.getPackageMessage();
+//        List<PackageMessageForNio> pl = p.packageMessage(b1);
+        //PackageMessageForNio测试 结束
 
-        ByteBuffer b1 = ByteBuffer.allocate(a1.length + a2.length);
-        b1.put(a1).put(a2);
-        System.out.println(Arrays.toString(b1.array()));
+        //PackageMessage测试 开始
+        com.itgowo.tcp.me.ByteBuffer b2= com.itgowo.tcp.me.ByteBuffer.newByteBuffer();
+        b2.writeBytes(a1).writeBytes(a2).writeBytes(a3).writeBytes(a4);
+        PackageMessage p = PackageMessage.getPackageMessage();
+        List<PackageMessage> pl = p.packageMessage(b2);
+        //PackageMessage测试 结束
 
-        System.out.println("解码");
-        b1.flip();
-        PackageMessageForNio p = PackageMessageForNio.getPackageMessage();
-        List<PackageMessageForNio> pl = p.packageMessage(b1);
         for (int i = 0; i < pl.size(); i++) {
             System.out.println(pl.get(i));
         }
