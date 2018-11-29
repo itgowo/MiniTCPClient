@@ -2,12 +2,12 @@ package com.itgowo.tcpclient;
 
 public abstract class onSimpleMiniTCPClientListener implements onMiniTCPClientListener {
     @Override
-    public void onConnected(TCPClient tcpClient) {
+    public void onConnected(MiniTCPClient tcpClient) {
 
     }
 
     @Override
-    public void onWritable(TCPClient tcpClient) {
+    public void onWritable(MiniTCPClient tcpClient) {
 
     }
 

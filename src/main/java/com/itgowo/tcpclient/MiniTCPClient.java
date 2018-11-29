@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.ConnectException;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
@@ -14,21 +15,23 @@ import java.nio.channels.*;
 import java.util.Iterator;
 import java.util.List;
 
-public class TCPClient extends Thread {
+public class MiniTCPClient extends Thread {
     public static final int RESULT_TYPE_NIO = 0;
     public static final int RESULT_TYPE_PACKMESSAGE = 1;
     public static final int RESULT_TYPE_PACKMESSAGE_FOR_NIO = 2;
     private SocketChannel socketChannel;
-    private SocketAddress socketAddress;
     private onMiniTCPClientListener clientListener;
     private boolean isRunning;
     private int BufferSize = 1024;
     private int resultType = RESULT_TYPE_NIO;
     private PackageMessage packageMessageDecoder;
     private PackageMessageForNio packageMessageForNioDecoder;
+    private String remoteServerAddress;
+    private int remoteServerPort;
 
-    public TCPClient(SocketAddress socketAddress, onMiniTCPClientListener clientListener) {
-        this.socketAddress = socketAddress;
+    public MiniTCPClient(String remoteServerAddress, int remoteServerPort, onMiniTCPClientListener clientListener) {
+        this.remoteServerAddress = remoteServerAddress;
+        this.remoteServerPort = remoteServerPort;
         this.clientListener = clientListener;
         getResultType();
         setName("MiniTCPClient");
@@ -53,7 +56,7 @@ public class TCPClient extends Thread {
         return BufferSize;
     }
 
-    public TCPClient setBufferSize(int bufferSize) {
+    public MiniTCPClient setBufferSize(int bufferSize) {
         BufferSize = bufferSize;
         return this;
     }
@@ -62,15 +65,15 @@ public class TCPClient extends Thread {
         return isRunning;
     }
 
-    public TCPClient write(byte[] bytes) {
+    public MiniTCPClient write(byte[] bytes) {
         return write(ByteBuffer.wrap(bytes));
     }
 
-    public TCPClient write(ByteBuffer byteBuffer) {
+    public MiniTCPClient write(ByteBuffer byteBuffer) {
         return write(new ByteBuffer[]{byteBuffer});
     }
 
-    public TCPClient write(ByteBuffer[] byteBuffers) {
+    public MiniTCPClient write(ByteBuffer[] byteBuffers) {
         try {
             socketChannel.write(byteBuffers);
         } catch (IOException e) {
@@ -92,6 +95,7 @@ public class TCPClient extends Thread {
     public void run() {
         Selector selector = null;
         try {
+            SocketAddress socketAddress = new InetSocketAddress(remoteServerAddress, remoteServerPort);
             socketChannel = SocketChannel.open();
             socketChannel.setOption(StandardSocketOptions.SO_RCVBUF, BufferSize);
             socketChannel.configureBlocking(false);
@@ -140,7 +144,7 @@ public class TCPClient extends Thread {
         }
     }
 
-    private void onReceivedMessage(TCPClient tcpClient, ByteBuffer byteBuffer) {
+    private void onReceivedMessage(MiniTCPClient tcpClient, ByteBuffer byteBuffer) {
         if (resultType == RESULT_TYPE_PACKMESSAGE) {
             List<PackageMessage> list = packageMessageDecoder.getPackageMessage().packageMessage(com.itgowo.tcp.me.ByteBuffer.newByteBuffer().writeBytes(byteBuffer.array(), byteBuffer.limit()));
             for (PackageMessage p : list) {

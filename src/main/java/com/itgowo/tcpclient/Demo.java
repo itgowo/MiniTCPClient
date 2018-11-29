@@ -8,13 +8,19 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+/**
+ * testClient() 接收类型为Java Nio的ByteBuffer
+ * testPackageClient()接收类型为标准版PackageMessage
+ * testPackageNioClient()接收类型为Nio版PackageMessage
+ */
 public class Demo {
     public static void main(String[] args) {
         testPackage();
-
-
     }
 
+    /**
+     * 测试粘包分包问题
+     */
     public static void testPackage() {
         byte[] a1 = new byte[]{121, 0, 0, 0, 16, 3, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6};//完整包
         byte[] a2 = new byte[]{121, 0, 0, 0, 19, 3, 0, 0, 0, 1, 1, 2, 3, 4, 5, 6, 7, 8};//半包
@@ -30,7 +36,7 @@ public class Demo {
         //PackageMessageForNio测试 结束
 
         //PackageMessage测试 开始
-        com.itgowo.tcp.me.ByteBuffer b2= com.itgowo.tcp.me.ByteBuffer.newByteBuffer();
+        com.itgowo.tcp.me.ByteBuffer b2 = com.itgowo.tcp.me.ByteBuffer.newByteBuffer();
         b2.writeBytes(a1).writeBytes(a2).writeBytes(a3).writeBytes(a4);
         PackageMessage p = PackageMessage.getPackageMessage();
         List<PackageMessage> pl = p.packageMessage(b2);
@@ -42,22 +48,21 @@ public class Demo {
     }
 
     public static void testClient() {
-        SocketAddress socketAddress = new InetSocketAddress("localhost", 12001);
-        TCPClient client = new TCPClient(socketAddress, new onMiniTCPClientListener<ByteBuffer>() {
+        MiniTCPClient client = new MiniTCPClient("localhost", 12001, new onMiniTCPClientListener<ByteBuffer>() {
             @Override
-            public void onConnected(TCPClient tcpClient) {
+            public void onConnected(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onConnected");
 
             }
 
             @Override
-            public void onReadable(TCPClient tcpClient, ByteBuffer byteBuffer) {
+            public void onReadable(MiniTCPClient tcpClient, ByteBuffer byteBuffer) {
                 System.out.println(byteBuffer);
                 tcpClient.write("哈哈哈哈哈哈".getBytes());
             }
 
             @Override
-            public void onWritable(TCPClient tcpClient) {
+            public void onWritable(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onWritable");
                 tcpClient.write("哈哈哈哈哈哈".getBytes());
             }
@@ -75,23 +80,25 @@ public class Demo {
         client.startConnect();
     }
 
+    /**
+     * 测试标准版PackageMessage方案，使用自定义ByteBuffer
+     */
     public static void testPackageClient() {
-        SocketAddress socketAddress = new InetSocketAddress("localhost", 12002);
-        TCPClient client = new TCPClient(socketAddress, new onMiniTCPClientListener<PackageMessage>() {
+        MiniTCPClient client = new MiniTCPClient( "localhost", 12002, new onMiniTCPClientListener<PackageMessage>() {
             @Override
-            public void onConnected(TCPClient tcpClient) {
+            public void onConnected(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onConnected");
 
             }
 
             @Override
-            public void onReadable(TCPClient tcpClient, PackageMessage resultData) {
+            public void onReadable(MiniTCPClient tcpClient, PackageMessage resultData) {
                 System.out.println(resultData);
 //                tcpClient.write("哈哈哈哈哈哈".getBytes());
             }
 
             @Override
-            public void onWritable(TCPClient tcpClient) {
+            public void onWritable(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onWritable");
                 PackageMessage p = PackageMessage.getPackageMessage();
                 p.setType(PackageMessage.TYPE_DYNAMIC_LENGTH).setDataType(3).setData(new byte[]{33});
@@ -113,23 +120,25 @@ public class Demo {
         client.startConnect();
     }
 
+    /**
+     * 测试Nio版PackageMessage方案，使用Java Nio的ByteBuffer
+     */
     public static void testPackageNioClient() {
-        SocketAddress socketAddress = new InetSocketAddress("localhost", 12002);
-        TCPClient client = new TCPClient(socketAddress, new onMiniTCPClientListener<PackageMessageForNio>() {
+        MiniTCPClient client = new MiniTCPClient("localhost", 12002, new onMiniTCPClientListener<PackageMessageForNio>() {
             @Override
-            public void onConnected(TCPClient tcpClient) {
+            public void onConnected(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onConnected");
 
             }
 
             @Override
-            public void onReadable(TCPClient tcpClient, PackageMessageForNio resultData) {
+            public void onReadable(MiniTCPClient tcpClient, PackageMessageForNio resultData) {
                 System.out.println(resultData);
 //                tcpClient.write("哈哈哈哈哈哈".getBytes());
             }
 
             @Override
-            public void onWritable(TCPClient tcpClient) {
+            public void onWritable(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onWritable");
                 PackageMessageForNio p = PackageMessageForNio.getPackageMessage();
                 p.setType(PackageMessageForNio.TYPE_DYNAMIC_LENGTH).setDataType(3).setData(new byte[]{33});

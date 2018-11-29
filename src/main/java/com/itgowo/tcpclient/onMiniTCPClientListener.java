@@ -1,11 +1,11 @@
 package com.itgowo.tcpclient;
 
 public interface onMiniTCPClientListener<ResultType> {
-    void onConnected(TCPClient tcpClient);
+    void onConnected(MiniTCPClient tcpClient);
 
-    void onReadable(TCPClient tcpClient, ResultType resultType);
+    void onReadable(MiniTCPClient tcpClient, ResultType resultType);
 
-    void onWritable(TCPClient tcpClient);
+    void onWritable(MiniTCPClient tcpClient);
 
     void onError(String error, Exception e);
 
