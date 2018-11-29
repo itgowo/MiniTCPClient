@@ -1,6 +1,7 @@
 package com.itgowo.tcp.me;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * @author lujianchao
@@ -400,5 +401,15 @@ public class ByteBuffer {
         ByteBufferException(String message) {
             super(message);
         }
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("ByteBuffer{");
+        sb.append("readerIndex=").append(readerIndex);
+        sb.append(", writerIndex=").append(writerIndex);
+        sb.append(", capacity=").append(data.length);
+        sb.append('}');
+        return sb.toString();
     }
 }

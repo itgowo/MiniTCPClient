@@ -371,8 +371,7 @@ public class PackageMessageForNio {
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("PackageMessageForNio{");
-        sb.append("pack=").append(pack);
-        sb.append(", type=").append(type);
+        sb.append("type=").append(type);
         sb.append(", length=").append(length);
         sb.append(", dataType=").append(dataType);
         sb.append(", dataSign=").append(dataSign);

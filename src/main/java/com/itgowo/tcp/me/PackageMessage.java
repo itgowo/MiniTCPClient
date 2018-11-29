@@ -369,4 +369,17 @@ public class PackageMessage {
         bytes1[3] = data.array()[position];
         return byteArrayToInt(bytes1);
     }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("PackageMessage{");
+        sb.append("type=").append(type);
+        sb.append(", length=").append(length);
+        sb.append(", dataType=").append(dataType);
+        sb.append(", dataSign=").append(dataSign);
+        sb.append(", data=").append(data);
+        sb.append(", step=").append(step);
+        sb.append('}');
+        return sb.toString();
+    }
 }
