@@ -1,0 +1,37 @@
+group 'com.itgowo'
+version '0.0.1'
+
+apply plugin: 'java'
+apply plugin: 'com.novoda.bintray-release'//添加
+
+sourceCompatibility = 1.8
+
+repositories {
+    maven { url 'http://maven.itgowo.com/repository/maven-public/' }
+    jcenter()
+    mavenCentral()
+    google()
+}
+buildscript {
+    repositories {
+        mavenCentral()
+        google()
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.novoda:bintray-release:0.8.1'
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+}
+publish {
+    userOrg = 'itgowo'
+    groupId = 'com.itgowo'
+    artifactId = 'MiniTCPClient'
+    publishVersion = '0.0.1'
+    desc = 'A long connection scheme based on Java Nio implementation, supporting sticky half packet processing'
+    website = 'https://github.com/itgowo/MiniTCPClient'
+}
