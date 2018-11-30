@@ -206,6 +206,9 @@ public class PackageMessageForNio {
             while (true) {
                 PackageMessageForNio packageMessage = decodePackageMessage(byteBuffer);
                 if (packageMessage != null && packageMessage.isCompleted()) {
+                    if (packageMessage.getData() != null) {
+                        packageMessage.getData().position(0);
+                    }
                     messageList.add(packageMessage);
                 } else {
                     break;
@@ -240,6 +243,7 @@ public class PackageMessageForNio {
             //可能存在数据读取一半情况，直接返回，返回后由上游处理器暂存输入流剩余数据，下次合并输入流。
             return pack;
         }
+        pack.dataType = byteBuffer.get();
         pack.dataSign = byteBuffer.getInt();
         //数据包大小在已有数据范围内，即要执行拆包操作
         int dataLength = pack.getLength() - LENGTH_HEAD;

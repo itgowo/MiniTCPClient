@@ -211,7 +211,9 @@ public class PackageMessage {
             while (true) {
                 PackageMessage packageMessage = decodePackageMessage(byteBuffer);
                 if (packageMessage != null && packageMessage.isCompleted()) {
-                    packageMessage.getData().readerIndex(0);
+                    if (packageMessage.getData() != null) {
+                        packageMessage.getData().readerIndex(0);
+                    }
                     messageList.add(packageMessage);
                 } else {
                     break;
