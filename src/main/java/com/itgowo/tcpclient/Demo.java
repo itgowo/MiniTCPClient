@@ -15,7 +15,7 @@ import java.util.List;
  */
 public class Demo {
     public static void main(String[] args) {
-        testPackage();
+        testPackageNioClientAutoReConnect();
     }
 
     /**
@@ -56,6 +56,11 @@ public class Demo {
             }
 
             @Override
+            public void onReconnected(MiniTCPClient tcpClient) throws Exception {
+
+            }
+
+            @Override
             public void onReadable(MiniTCPClient tcpClient, ByteBuffer byteBuffer) {
                 System.out.println(byteBuffer);
                 tcpClient.write("哈哈哈哈哈哈".getBytes());
@@ -88,6 +93,11 @@ public class Demo {
             @Override
             public void onConnected(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onConnected");
+
+            }
+
+            @Override
+            public void onReconnected(MiniTCPClient tcpClient) throws Exception {
 
             }
 
@@ -132,6 +142,11 @@ public class Demo {
             }
 
             @Override
+            public void onReconnected(MiniTCPClient tcpClient) throws Exception {
+
+            }
+
+            @Override
             public void onReadable(MiniTCPClient tcpClient, PackageMessageForNio resultData) {
                 System.out.println(resultData);
 //                tcpClient.write("哈哈哈哈哈哈".getBytes());
@@ -156,6 +171,48 @@ public class Demo {
                 System.out.println("Demo.onStop");
             }
         });
+        client.startConnect();
+    }
+
+    public static void testPackageNioClientAutoReConnect() {
+        MiniTCPClient client = new MiniTCPClient("localhost", 12002, new onMiniTCPClientListener<PackageMessageForNio>() {
+            @Override
+            public void onConnected(MiniTCPClient tcpClient) {
+                System.out.println("Demo.onConnected");
+
+            }
+
+            @Override
+            public void onReconnected(MiniTCPClient tcpClient) throws Exception {
+                System.out.println("Demo.onReconnected");
+            }
+
+            @Override
+            public void onReadable(MiniTCPClient tcpClient, PackageMessageForNio resultData) {
+                System.out.println(resultData);
+//                tcpClient.write("哈哈哈哈哈哈".getBytes());
+            }
+
+            @Override
+            public void onWritable(MiniTCPClient tcpClient) {
+                System.out.println("Demo.onWritable");
+                PackageMessageForNio p = PackageMessageForNio.getPackageMessage();
+                p.setType(PackageMessageForNio.TYPE_DYNAMIC_LENGTH).setDataType(3).setData(new byte[]{33});
+                tcpClient.write(p.encodePackageMessage());
+            }
+
+            @Override
+            public void onError(String error, Exception e) {
+                e.printStackTrace();
+                System.out.println("error = [" + error + "], e = [" + e + "]");
+            }
+
+            @Override
+            public void onStop() {
+                System.out.println("Demo.onStop");
+            }
+        });
+        client.setAutoReconnect(true);
         client.startConnect();
     }
 }
