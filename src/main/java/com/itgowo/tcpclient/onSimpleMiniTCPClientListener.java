@@ -7,6 +7,16 @@ public abstract class onSimpleMiniTCPClientListener implements onMiniTCPClientLi
     }
 
     @Override
+    public void onReconnected(MiniTCPClient tcpClient) throws Exception {
+
+    }
+
+    @Override
+    public void onOffline(MiniTCPClient tcpClient) throws Exception {
+
+    }
+
+    @Override
     public void onWritable(MiniTCPClient tcpClient) throws Exception {
 
     }

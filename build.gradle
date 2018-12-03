@@ -1,5 +1,5 @@
 group 'com.itgowo'
-version '0.0.12'
+version '0.0.19'
 
 apply plugin: 'java'
 apply plugin: 'com.novoda.bintray-release'//添加
@@ -31,7 +31,7 @@ publish {
     userOrg = 'itgowo'
     groupId = 'com.itgowo'
     artifactId = 'MiniTCPClient'
-    publishVersion = '0.0.12'
+    publishVersion = '0.0.19'
     desc = 'A long connection scheme based on Java Nio implementation, supporting sticky half packet processing'
     website = 'https://github.com/itgowo/MiniTCPClient'
 }

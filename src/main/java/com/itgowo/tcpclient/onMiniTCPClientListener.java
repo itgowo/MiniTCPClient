@@ -5,6 +5,8 @@ public interface onMiniTCPClientListener<ResultType> {
 
     void onReconnected(MiniTCPClient tcpClient) throws Exception;
 
+    void onOffline(MiniTCPClient tcpClient) throws Exception;
+
     void onReadable(MiniTCPClient tcpClient, ResultType resultType) throws Exception;
 
     void onWritable(MiniTCPClient tcpClient) throws Exception;

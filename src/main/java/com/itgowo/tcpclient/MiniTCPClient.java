@@ -4,12 +4,9 @@ import com.itgowo.tcp.me.PackageMessage;
 import com.itgowo.tcp.nio.PackageMessageForNio;
 
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.Iterator;
@@ -19,25 +16,21 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class MiniTCPClient implements Runnable {
-    public static final int RESULT_TYPE_NIO = 0;
-    public static final int RESULT_TYPE_PACKMESSAGE = 1;
-    public static final int RESULT_TYPE_PACKMESSAGE_FOR_NIO = 2;
-    public static final int SERVER_STATUS_WAIT = 1;
-    public static final int SERVER_STATUS_CONNECTED = 2;
-    public static final int SERVER_STATUS_RECONNECTING = 3;
-    public static final int SERVER_STATUS_RECONNECTED = 4;
-    public static final int SERVER_STATUS_STOP = 5;
 
-    protected SocketChannel socketChannel;
-    protected onMiniTCPClientListener clientListener;
+
+    public static final int SERVER_STATUS_RESTART = 1;
+    public static final int SERVER_STATUS_WAIT = 2;
+    public static final int SERVER_STATUS_CONNECTED = 3;
+    public static final int SERVER_STATUS_RECONNECTING = 4;
+    public static final int SERVER_STATUS_RECONNECTED = 5;
+    public static final int SERVER_STATUS_STOP = 6;
+
+    protected MiniTCPClientInfo clientInfo;
     protected int serverStatus;
+    protected onMiniTCPClientListener clientListener;
     protected int BufferSize = 1024;
-    protected int resultType = RESULT_TYPE_NIO;
-    protected PackageMessage packageMessageDecoder;
-    protected PackageMessageForNio packageMessageForNioDecoder;
     protected String remoteServerAddress;
     protected int remoteServerPort;
-    protected Thread thread;
     protected boolean daemon;
 
 
@@ -63,28 +56,11 @@ public class MiniTCPClient implements Runnable {
         this.remoteServerAddress = remoteServerAddress;
         this.remoteServerPort = remoteServerPort;
         this.clientListener = clientListener;
-        getResultType();
+        this.clientInfo = new MiniTCPClientInfo();
+        this.clientInfo.getResultType(clientListener);
 
     }
 
-    /**
-     * 内部方法
-     * 判断服务初始类型，分为返回Java Nio ByteBuffer、PackageMessage和PackageMessageForNio三种
-     */
-    private void getResultType() {
-        Type[] types = clientListener.getClass().getGenericInterfaces();
-        if (types[0] instanceof ParameterizedType) {
-            ParameterizedType parameterizedType = (ParameterizedType) types[0];
-            Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-            if (actualTypeArguments[0].getTypeName().equals(PackageMessage.class.getTypeName())) {
-                packageMessageDecoder = PackageMessage.getPackageMessage();
-                resultType = RESULT_TYPE_PACKMESSAGE;
-            } else if (actualTypeArguments[0].getTypeName().equals(PackageMessageForNio.class.getTypeName())) {
-                packageMessageForNioDecoder = PackageMessageForNio.getPackageMessage();
-                resultType = RESULT_TYPE_PACKMESSAGE_FOR_NIO;
-            }
-        }
-    }
 
     /**
      * 获取TCP缓冲区大小
@@ -143,7 +119,7 @@ public class MiniTCPClient implements Runnable {
      */
     public MiniTCPClient write(ByteBuffer[] byteBuffers) {
         try {
-            socketChannel.write(byteBuffers);
+            clientInfo.socketChannel.write(byteBuffers);
         } catch (IOException e) {
             dispatcherError(e);
         }
@@ -154,6 +130,9 @@ public class MiniTCPClient implements Runnable {
      * 启动服务
      */
     public synchronized void startConnect() {
+        if (clientInfo != null && clientInfo.thread != null && clientInfo.thread.isAlive()) {
+            return;
+        }
         start();
         if (autoReconnect) {
             loopHeart();
@@ -165,75 +144,130 @@ public class MiniTCPClient implements Runnable {
      * 启动线程连接
      */
     protected synchronized void start() {
-        stop();
-        thread = new Thread(this);
-        thread.setName("MiniTCPClient");
-        thread.setDaemon(daemon);
-        thread.start();
+        serverStatus = SERVER_STATUS_WAIT;
+        clientInfo.thread = new Thread(this);
+        clientInfo.thread.setName("MiniTCPClient");
+        clientInfo.thread.setDaemon(daemon);
+        clientInfo.thread.start();
     }
 
     @Override
     public void run() {
-        Selector selector = null;
+        initChannel();
+        while (autoReconnect) {
+            serverStatus = SERVER_STATUS_RECONNECTING;
+            initChannel();
+            try {
+                Thread.sleep(sendHeartTimeInterval * 1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void initChannel() {
         try {
             SocketAddress socketAddress = new InetSocketAddress(remoteServerAddress, remoteServerPort);
-            socketChannel = SocketChannel.open();
-            socketChannel.setOption(StandardSocketOptions.SO_RCVBUF, BufferSize);
-            socketChannel.configureBlocking(false);
-            socketChannel.connect(socketAddress);
-            selector = Selector.open();
-            socketChannel.register(selector, SelectionKey.OP_CONNECT);
+            clientInfo.socketChannel = SocketChannel.open();
+            clientInfo.socketChannel.socket().setReceiveBufferSize(BufferSize);
+            clientInfo.socketChannel.configureBlocking(false);
+            clientInfo.socketChannel.connect(socketAddress);
+            clientInfo.selector = Selector.open();
+            clientInfo.socketChannel.register(clientInfo.selector, SelectionKey.OP_CONNECT);
             boolean isReconnect = serverStatus == SERVER_STATUS_RECONNECTING;
             serverStatus = SERVER_STATUS_WAIT;
             while (serverStatus != SERVER_STATUS_STOP) {
-                selector.select();
-                Iterator ite = selector.selectedKeys().iterator();
-                while (ite.hasNext()) {
-                    SelectionKey key = (SelectionKey) ite.next();
-                    ite.remove();
-                    if (key.isConnectable()) {
-                        if (socketChannel.isConnectionPending()) {
-                            if (socketChannel.finishConnect()) {
-                                //只有当连接成功后才能注册OP_READ事件
-                                key.interestOps(SelectionKey.OP_WRITE);
-                                if (isReconnect) {
-                                    serverStatus = SERVER_STATUS_RECONNECTED;
-                                    clientListener.onReconnected(this);
-                                } else {
-                                    serverStatus = SERVER_STATUS_CONNECTED;
-                                    clientListener.onConnected(this);
-                                }
-                                lastMsgTime = System.currentTimeMillis();
-
-                            } else {
-                                key.cancel();
-                            }
-                        }
-                        key.interestOps(SelectionKey.OP_WRITE);
-                    } else if (key.isReadable()) {
-                        java.nio.ByteBuffer byteBuffer = java.nio.ByteBuffer.allocate(BufferSize);
-                        int count = socketChannel.read(byteBuffer);
-                        byteBuffer.flip();
-                        if (count == -1) {
-                            serverStatus = SERVER_STATUS_STOP;
-                        } else if (count != 0) {
-                            try {
-                                onReceivedMessage(byteBuffer);
-                            } catch (Exception e) {
-                                clientListener.onError("消息处理异常", e);
-                            }
-                        }
-                    } else if (key.isWritable()) {
-                        key.interestOps(SelectionKey.OP_READ);
-                        clientListener.onWritable(this);
-                    }
-                }
+                clientInfo.selector.select(3000);
+                processSelectionKey(clientInfo.selector, isReconnect);
             }
         } catch (Exception e) {
             dispatcherError(e);
         } finally {
-            close(socketChannel, selector);
+            clientInfo.close();
             stopOrReconnect();
+        }
+    }
+
+    /**
+     * 处理Select
+     * @param selector
+     * @param isReconnect
+     * @throws Exception
+     */
+    private void processSelectionKey(Selector selector, boolean isReconnect) throws Exception {
+        Iterator ite = selector.selectedKeys().iterator();
+        while (ite.hasNext()) {
+            SelectionKey key = (SelectionKey) ite.next();
+            ite.remove();
+            if (key.isConnectable()) {
+                if (clientInfo.socketChannel.isConnectionPending()) {
+                    Thread.yield();
+                    try {
+                        if (clientInfo.socketChannel.finishConnect()) {
+                            //只有当连接成功后才能注册OP_READ事件
+                            key.interestOps(SelectionKey.OP_WRITE);
+                            clientInfo.isOffline = false;
+                            if (isReconnect) {
+                                serverStatus = SERVER_STATUS_RECONNECTED;
+                                clientListener.onReconnected(this);
+                            } else {
+                                serverStatus = SERVER_STATUS_CONNECTED;
+                                clientListener.onConnected(this);
+                            }
+                            lastMsgTime = System.currentTimeMillis();
+                        } else {
+                            key.cancel();
+                        }
+                    } catch (Exception e) {
+                        serverStatus = SERVER_STATUS_STOP;
+                        break;
+                    }
+                }
+                key.interestOps(SelectionKey.OP_WRITE);
+            } else if (key.isReadable()) {
+                java.nio.ByteBuffer byteBuffer = java.nio.ByteBuffer.allocate(BufferSize);
+                int count = clientInfo.socketChannel.read(byteBuffer);
+                byteBuffer.flip();
+                if (count == -1) {
+                    serverStatus = SERVER_STATUS_STOP;
+                } else if (count != 0) {
+                    try {
+                        onReceivedMessage(byteBuffer);
+                    } catch (Exception e) {
+                        clientListener.onError("消息处理异常", e);
+                    }
+                }
+            } else if (key.isWritable()) {
+                key.interestOps(SelectionKey.OP_READ);
+                clientInfo.isWritable = true;
+                clientListener.onWritable(this);
+            }
+        }
+    }
+
+    /**
+     * 内部方法
+     * 针对具体异常做对应处理
+     *
+     * @param e
+     */
+    protected void dispatcherError(Exception e) {
+        if (e instanceof NotYetConnectedException) {
+            clientListener.onError("未完成连接，请求过早", e);
+        } else if (e instanceof ConnectException) {
+            clientListener.onError("连接失败", e);
+        } else if (e instanceof AsynchronousCloseException) {
+            clientListener.onError("连接被关闭", e);
+        } else if (e instanceof ClosedByInterruptException) {
+            clientListener.onError("连接被中断", e);
+        } else if (e instanceof ClosedChannelException) {
+            clientListener.onError("连接通道被关闭", e);
+        } else if (e instanceof NoConnectionPendingException) {
+            clientListener.onError("连接尚未成功，连接成功前不可以操作", e);
+        } else if (e instanceof CancelledKeyException) {
+            clientListener.onError("连接失败，本次连接已取消", e);
+        } else {
+            clientListener.onError("其他", e);
         }
     }
 
@@ -245,15 +279,15 @@ public class MiniTCPClient implements Runnable {
      */
     protected void onReceivedMessage(ByteBuffer byteBuffer) throws Exception {
         lastMsgTime = System.currentTimeMillis();
-        if (resultType == RESULT_TYPE_PACKMESSAGE) {
-            List<PackageMessage> list = packageMessageDecoder.getPackageMessage().packageMessage(com.itgowo.tcp.me.ByteBuffer.newByteBuffer().writeBytes(byteBuffer.array(), byteBuffer.limit()));
+        if (clientInfo.isPackageMessage()) {
+            List<PackageMessage> list = clientInfo.packageMessageDecoder.getPackageMessage().packageMessage(com.itgowo.tcp.me.ByteBuffer.newByteBuffer().writeBytes(byteBuffer.array(), byteBuffer.limit()));
             for (PackageMessage p : list) {
                 if (p.getDataType() != PackageMessage.DATA_TYPE_HEART) {
                     onReceivedMessageNext(p);
                 }
             }
-        } else if (resultType == RESULT_TYPE_PACKMESSAGE_FOR_NIO) {
-            List<PackageMessageForNio> list = packageMessageForNioDecoder.getPackageMessage().packageMessage(byteBuffer);
+        } else if (clientInfo.isPackageMessageForNio()) {
+            List<PackageMessageForNio> list = clientInfo.packageMessageForNioDecoder.getPackageMessage().packageMessage(byteBuffer);
             for (PackageMessageForNio nio : list) {
                 if (nio.getDataType() != PackageMessageForNio.DATA_TYPE_HEART) {
                     onReceivedMessageNext(nio);
@@ -353,20 +387,7 @@ public class MiniTCPClient implements Runnable {
      * 停止连接并停止线程
      */
     protected synchronized void stop() {
-        if (serverStatus != SERVER_STATUS_RECONNECTING) {
-            serverStatus = SERVER_STATUS_STOP;
-        }
-        if (socketChannel != null) {
-            try {
-                socketChannel.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            socketChannel = null;
-        }
-        if (thread != null) {
-            thread.stop();
-        }
+        serverStatus = SERVER_STATUS_STOP;
     }
 
     /**
@@ -375,7 +396,15 @@ public class MiniTCPClient implements Runnable {
      */
     public void stopConnect() {
         autoReconnect = false;
-        stopAndCallBack();
+        stop();
+    }
+
+    public boolean isOffline() {
+        return clientInfo == null ? true : clientInfo.isOffline;
+    }
+
+    public boolean isWritable() {
+        return clientInfo == null ? true : clientInfo.isWritable;
     }
 
     /**
@@ -384,7 +413,16 @@ public class MiniTCPClient implements Runnable {
      */
     protected void stopOrReconnect() {
         if (autoReconnect) {
-            start();
+            if (clientInfo.isOffline) {
+                return;
+            }
+            try {
+                clientInfo.isOffline = true;
+                clientInfo.isWritable = false;
+                clientListener.onOffline(this);
+            } catch (Exception e) {
+                clientListener.onError("onOffline", e);
+            }
         } else {
             serverStatus = SERVER_STATUS_STOP;
             stopAndCallBack();
@@ -406,58 +444,6 @@ public class MiniTCPClient implements Runnable {
         }
     }
 
-    /**
-     * 内部方法
-     * 关闭连接通道
-     *
-     * @param socketChannel
-     * @param selector
-     */
-    protected void close(SocketChannel socketChannel, Selector selector) {
-        if (socketChannel != null) {
-            try {
-                socketChannel.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        if (selector != null) {
-            try {
-                selector.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    /**
-     * 内部方法
-     * 针对具体异常做对应处理
-     *
-     * @param e
-     */
-    protected void dispatcherError(Exception e) {
-        if (e instanceof NotYetConnectedException) {
-            clientListener.onError("未完成连接，请求过早", e);
-        } else if (e instanceof ConnectException) {
-            clientListener.onError("连接失败", e);
-            stopOrReconnect();
-        } else if (e instanceof AsynchronousCloseException) {
-            clientListener.onError("连接被关闭", e);
-            stopOrReconnect();
-        } else if (e instanceof ClosedByInterruptException) {
-            clientListener.onError("连接被中断", e);
-            stopOrReconnect();
-        } else if (e instanceof ClosedChannelException) {
-            clientListener.onError("连接通道被关闭", e);
-            stopOrReconnect();
-        } else if (e instanceof NoConnectionPendingException) {
-            clientListener.onError("连接尚未成功，连接成功前不可以操作", e);
-        } else {
-            clientListener.onError("", e);
-        }
-
-    }
 
     /**
      * 内部方法
@@ -471,19 +457,28 @@ public class MiniTCPClient implements Runnable {
             @Override
             public void run() {
                 if (autoReconnect) {
-                    if ((serverStatus == SERVER_STATUS_CONNECTED || serverStatus == SERVER_STATUS_RECONNECTED) && System.currentTimeMillis() < reconnectTimeOut + lastMsgTime) {
-                        if (resultType == RESULT_TYPE_PACKMESSAGE_FOR_NIO) {
+                    if (serverStatus == SERVER_STATUS_RECONNECTING) {
+                        return;
+                    }
+                    if (serverStatus != SERVER_STATUS_CONNECTED && serverStatus != SERVER_STATUS_RECONNECTED) {
+                        return;
+                    }
+                    if (System.currentTimeMillis() < reconnectTimeOut + lastMsgTime) {
+                        if (clientInfo.isPackageMessageForNio()) {
                             write(PackageMessageForNio.getHeartPackageMessage().encodePackageMessage());
-                        } else if (resultType == RESULT_TYPE_PACKMESSAGE) {
+                        } else if (clientInfo.isPackageMessage()) {
                             write(PackageMessage.getHeartPackageMessage().encodePackageMessage().readableBytesArray());
                         }
                     } else {
-                        serverStatus = SERVER_STATUS_RECONNECTING;
-                        start();
+//                        stopOrReconnect();
                     }
+                } else {
+                    scheduledThreadPool.shutdown();
                 }
             }
         }, sendHeartTimeInterval, sendHeartTimeInterval, TimeUnit.SECONDS);
 
     }
+
+
 }

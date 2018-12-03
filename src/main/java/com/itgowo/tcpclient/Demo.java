@@ -3,8 +3,6 @@ package com.itgowo.tcpclient;
 import com.itgowo.tcp.me.PackageMessage;
 import com.itgowo.tcp.nio.PackageMessageForNio;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -61,6 +59,11 @@ public class Demo {
             }
 
             @Override
+            public void onOffline(MiniTCPClient tcpClient) throws Exception {
+                System.out.println("Demo.onOffline");
+            }
+
+            @Override
             public void onReadable(MiniTCPClient tcpClient, ByteBuffer byteBuffer) {
                 System.out.println(byteBuffer);
                 tcpClient.write("哈哈哈哈哈哈".getBytes());
@@ -89,7 +92,7 @@ public class Demo {
      * 测试标准版PackageMessage方案，使用自定义ByteBuffer
      */
     public static void testPackageClient() {
-        MiniTCPClient client = new MiniTCPClient( "localhost", 12002, new onMiniTCPClientListener<PackageMessage>() {
+        MiniTCPClient client = new MiniTCPClient("localhost", 12002, new onMiniTCPClientListener<PackageMessage>() {
             @Override
             public void onConnected(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onConnected");
@@ -99,6 +102,11 @@ public class Demo {
             @Override
             public void onReconnected(MiniTCPClient tcpClient) throws Exception {
 
+            }
+
+            @Override
+            public void onOffline(MiniTCPClient tcpClient) throws Exception {
+                System.out.println("Demo.onOffline");
             }
 
             @Override
@@ -147,6 +155,11 @@ public class Demo {
             }
 
             @Override
+            public void onOffline(MiniTCPClient tcpClient) throws Exception {
+                System.out.println("Demo.onOffline");
+            }
+
+            @Override
             public void onReadable(MiniTCPClient tcpClient, PackageMessageForNio resultData) {
                 System.out.println(resultData);
 //                tcpClient.write("哈哈哈哈哈哈".getBytes());
@@ -184,7 +197,13 @@ public class Demo {
 
             @Override
             public void onReconnected(MiniTCPClient tcpClient) throws Exception {
-                System.out.println("Demo.onReconnected");
+                System.out.println("Demo.onReconnected   isOffline=" + tcpClient.isOffline() + "   isWritable=" + tcpClient.isWritable());
+//                tcpClient.stopConnect();
+            }
+
+            @Override
+            public void onOffline(MiniTCPClient tcpClient) throws Exception {
+                System.out.println("Demo.onOffline ");
             }
 
             @Override
@@ -195,7 +214,7 @@ public class Demo {
 
             @Override
             public void onWritable(MiniTCPClient tcpClient) {
-                System.out.println("Demo.onWritable");
+                System.out.println("Demo.onWritable ");
                 PackageMessageForNio p = PackageMessageForNio.getPackageMessage();
                 p.setType(PackageMessageForNio.TYPE_DYNAMIC_LENGTH).setDataType(3).setData(new byte[]{33});
                 tcpClient.write(p.encodePackageMessage());
@@ -203,7 +222,7 @@ public class Demo {
 
             @Override
             public void onError(String error, Exception e) {
-                e.printStackTrace();
+//                e.printStackTrace();
                 System.out.println("error = [" + error + "], e = [" + e + "]");
             }
 
@@ -212,7 +231,9 @@ public class Demo {
                 System.out.println("Demo.onStop");
             }
         });
-        client.setAutoReconnect(true);
+        client.setAutoReconnect(false);
+        client.setSendHeartTimeInterval(5);
+        client.setReconnectTimeOut(30 * 1000);
         client.startConnect();
     }
 }
