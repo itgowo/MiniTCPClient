@@ -216,7 +216,7 @@ public class Demo {
             public void onWritable(MiniTCPClient tcpClient) {
                 System.out.println("Demo.onWritable ");
                 PackageMessageForNio p = PackageMessageForNio.getPackageMessage();
-                p.setType(PackageMessageForNio.TYPE_DYNAMIC_LENGTH).setDataType(3).setData(new byte[]{33});
+                p.setType(PackageMessageForNio.TYPE_DYNAMIC_LENGTH).setDataType(PackageMessageForNio.DATA_TYPE_BYTE).setData(new byte[]{33});
                 tcpClient.write(p.encodePackageMessage());
             }
 
@@ -231,7 +231,7 @@ public class Demo {
                 System.out.println("Demo.onStop");
             }
         });
-        client.setAutoReconnect(false);
+        client.setAutoReconnect(true);
         client.setSendHeartTimeInterval(5);
         client.setReconnectTimeOut(30 * 1000);
         client.startConnect();

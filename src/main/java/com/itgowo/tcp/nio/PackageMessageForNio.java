@@ -226,8 +226,8 @@ public class PackageMessageForNio {
     }
 
     private PackageMessageForNio decodeDynamicLengthPackageMessage(ByteBuffer byteBuffer) throws IOException {
-        pack.setLength(byteBuffer.getInt());
-        pack.setDataType(byteBuffer.get());
+        pack.length = byteBuffer.getInt();
+        pack.dataType = byteBuffer.get();
         if (pack.getLength() < 6) {
             pack.step = STEP_DATA_INVALID;
             byteBuffer.position(0);
@@ -243,7 +243,6 @@ public class PackageMessageForNio {
             //可能存在数据读取一半情况，直接返回，返回后由上游处理器暂存输入流剩余数据，下次合并输入流。
             return pack;
         }
-        pack.dataType = byteBuffer.get();
         pack.dataSign = byteBuffer.getInt();
         //数据包大小在已有数据范围内，即要执行拆包操作
         int dataLength = pack.getLength() - LENGTH_HEAD;

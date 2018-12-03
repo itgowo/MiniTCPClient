@@ -280,14 +280,14 @@ public class MiniTCPClient implements Runnable {
     protected void onReceivedMessage(ByteBuffer byteBuffer) throws Exception {
         lastMsgTime = System.currentTimeMillis();
         if (clientInfo.isPackageMessage()) {
-            List<PackageMessage> list = clientInfo.packageMessageDecoder.getPackageMessage().packageMessage(com.itgowo.tcp.me.ByteBuffer.newByteBuffer().writeBytes(byteBuffer.array(), byteBuffer.limit()));
+            List<PackageMessage> list = clientInfo.packageMessageDecoder.packageMessage(com.itgowo.tcp.me.ByteBuffer.newByteBuffer().writeBytes(byteBuffer.array(), byteBuffer.limit()));
             for (PackageMessage p : list) {
                 if (p.getDataType() != PackageMessage.DATA_TYPE_HEART) {
                     onReceivedMessageNext(p);
                 }
             }
         } else if (clientInfo.isPackageMessageForNio()) {
-            List<PackageMessageForNio> list = clientInfo.packageMessageForNioDecoder.getPackageMessage().packageMessage(byteBuffer);
+            List<PackageMessageForNio> list = clientInfo.packageMessageForNioDecoder.packageMessage(byteBuffer);
             for (PackageMessageForNio nio : list) {
                 if (nio.getDataType() != PackageMessageForNio.DATA_TYPE_HEART) {
                     onReceivedMessageNext(nio);
